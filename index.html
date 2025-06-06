@@ -9,13 +9,12 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7fafc; /* Lighter gray background */
+            background-color: #f7fafc;
         }
-        /* Simple spinner animation */
         .loader {
             border: 4px solid #f3f3f3;
             border-radius: 50%;
-            border-top: 4px solid #3b82f6; /* Blue-500 */
+            border-top: 4px solid #3b82f6;
             width: 40px;
             height: 40px;
             animation: spin 1.5s linear infinite;
@@ -24,7 +23,6 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        /* Custom scrollbar for results */
         #result-container::-webkit-scrollbar {
             width: 8px;
         }
@@ -43,6 +41,9 @@
 </head>
 <body class="text-gray-800 flex flex-col items-center justify-center min-h-screen p-4">
 
+    <!-- Logo -->
+    <img src="https://i.imgur.com/4qNgA8E.png" alt="Company Logo" class="mb-6 h-20 w-auto">
+
     <div class="w-full max-w-2xl mx-auto">
         <!-- Main Application Card -->
         <div class="bg-white rounded-xl shadow-2xl p-6 md:p-8">
@@ -53,7 +54,7 @@
 
             <!-- Search Input -->
             <div class="flex flex-col sm:flex-row gap-3 mb-4">
-                <input type="text" id="ref-input" class="flex-grow w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow text-lg" placeholder="Enter Reference Number...">
+                <input type="text" id="ref-input" class="flex-grow w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow text-lg" placeholder="e.g., AHS/SPA/01/01-14/IAM">
                 <button id="search-btn" class="bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-105 shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
                     Search
                 </button>
@@ -65,11 +66,13 @@
             </div>
         </div>
     </div>
+    
+    <!-- Attribution -->
+    <p class="text-xs text-gray-500 mt-6">Powered by RBX</p>
 
     <script>
         // --- Configuration ---
         const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhVOvcKbqZZuAuYE-FgLykZX5PRpeTMgJ1SpAAKAcZRRTb8Bt8cPOSQXj0EWL6iC7eQRofXmggke-T/pub?gid=0&single=true&output=csv';
-        // Column indices (0-based)
         const SEARCH_COLUMN_INDEX = 1; // Column B
         const RESULT_COLUMN_1_INDEX = 14; // Column O
         const RESULT_COLUMN_2_INDEX = 19; // Column T
@@ -80,84 +83,125 @@
         const resultContainer = document.getElementById('result-container');
 
         // --- Application State ---
-        let sheetData = null; // To cache the fetched sheet data
+        let sheetData = null; 
 
         /**
-         * Fetches and parses the CSV data from the hardcoded Google Sheet URL.
-         * This function is called once when the page loads.
+         * A highly robust CSV parser that handles quotes, commas, and newlines within fields.
+         * @param {string} csvText - The entire raw CSV text from the fetch call.
+         * @returns {Array<Array<string>>} - A 2D array representing the parsed sheet data.
+         */
+        function parseCsv(csvText) {
+            const rows = [];
+            let currentRow = [];
+            let currentCell = '';
+            let inQuotes = false;
+
+            // Normalize line endings to \n
+            csvText = csvText.replace(/\r\n/g, '\n');
+
+            for (let i = 0; i < csvText.length; i++) {
+                const char = csvText[i];
+
+                if (inQuotes) {
+                    if (char === '"') {
+                        // Check for escaped quote ("")
+                        if (i + 1 < csvText.length && csvText[i + 1] === '"') {
+                            currentCell += '"';
+                            i++; // Skip the next quote
+                        } else {
+                            inQuotes = false; // End of quoted field
+                        }
+                    } else {
+                        currentCell += char;
+                    }
+                } else {
+                    if (char === '"') {
+                        inQuotes = true;
+                    } else if (char === ',') {
+                        currentRow.push(currentCell.trim());
+                        currentCell = '';
+                    } else if (char === '\n') {
+                        currentRow.push(currentCell.trim());
+                        rows.push(currentRow);
+                        currentRow = [];
+                        currentCell = '';
+                    } else {
+                        currentCell += char;
+                    }
+                }
+            }
+
+            // Add the last cell and row if the file doesn't end with a newline
+            if (currentCell || currentRow.length > 0) {
+                 currentRow.push(currentCell.trim());
+                 rows.push(currentRow);
+            }
+            
+            return rows;
+        }
+
+        /**
+         * Fetches and parses CSV data using the robust parser.
          */
         async function loadSheetData() {
-            // Disable search while data is loading
             searchBtn.disabled = true;
             refInput.disabled = true;
             resultContainer.innerHTML = '<div class="loader"></div><p class="ml-4 text-gray-500">Loading data...</p>';
             
             try {
-                // Using a cache-busting parameter to ensure fresh data
                 const response = await fetch(`${GOOGLE_SHEET_URL}&t=${new Date().getTime()}`);
-                if (!response.ok) {
-                    throw new Error(`Network response was not ok: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
                 const csvText = await response.text();
-                // Parse CSV text into an array of arrays
-                sheetData = csvText.split('\n').map(row => row.split(',').map(cell => cell.trim().replace(/"/g, '')));
+                // Use the new robust parser for the entire CSV text
+                sheetData = parseCsv(csvText);
                 
-                // Enable search and update UI
                 resultContainer.innerHTML = `<p class="text-gray-500">Data loaded. Please enter a reference number.</p>`;
                 searchBtn.disabled = false;
                 refInput.disabled = false;
-
             } catch (error) {
                 console.error("Error loading sheet data:", error);
-                resultContainer.innerHTML = `<p class="text-red-600 font-semibold">Error: Failed to load data from the source. Please try refreshing the page.</p>`;
-                // Keep controls disabled on error
+                resultContainer.innerHTML = `<p class="text-red-600 font-semibold">Error: Failed to load data. Please refresh the page.</p>`;
             }
         }
-        
+
         /**
-         * Handles the search logic based on the pre-loaded data.
-         * Now uses partial, case-insensitive matching and displays all results.
+         * Handles the search logic.
          */
         function handleSearch() {
-            // Check if data is loaded
             if (!sheetData) {
-                resultContainer.innerHTML = `<p class="text-yellow-700 font-semibold">Data is still loading. Please wait a moment and try again.</p>`;
+                resultContainer.innerHTML = `<p class="text-yellow-700 font-semibold">Data is still loading. Please wait.</p>`;
                 return;
             }
 
             const searchTerm = refInput.value.trim().toLowerCase();
-
             if (!searchTerm) {
-                resultContainer.innerHTML = `<p class="text-yellow-700 font-semibold">Please enter a reference number to search.</p>`;
+                resultContainer.innerHTML = `<p class="text-yellow-700 font-semibold">Please enter a reference number.</p>`;
                 return;
             }
             
             const foundResults = [];
-
-            // Loop through each row to find partial matches for the reference number
             for (const row of sheetData) {
-                // Ensure the row has a value in the search column
-                const cellValue = (row[SEARCH_COLUMN_INDEX] || '').toLowerCase();
-                
-                if (cellValue.includes(searchTerm)) {
-                    foundResults.push({
-                        ref: row[SEARCH_COLUMN_INDEX] || 'N/A', // Show the actual reference found
-                        status1: row[RESULT_COLUMN_1_INDEX] || 'N/A',
-                        status2: row[RESULT_COLUMN_2_INDEX] || 'N/A'
-                    });
+                if(Array.isArray(row) && row.length > SEARCH_COLUMN_INDEX) {
+                    const cellValue = (row[SEARCH_COLUMN_INDEX] || '').toLowerCase();
+                    if (cellValue.includes(searchTerm)) {
+                        foundResults.push({
+                            ref: row[SEARCH_COLUMN_INDEX] || 'N/A',
+                            status1: row[RESULT_COLUMN_1_INDEX] || 'N/A',
+                            status2: row[RESULT_COLUMN_2_INDEX] || 'N/A'
+                        });
+                    }
                 }
             }
 
-            // --- Displaying Results ---
             if (foundResults.length > 0) {
                 let resultsHtml = `<div class="text-left w-full space-y-4">`;
                 foundResults.forEach(result => {
                     resultsHtml += `
-                        <div class="border-b border-gray-200 pb-3">
+                        <div class="border-b border-gray-200 pb-3 last:border-b-0">
                             <p class="text-md text-gray-600 mb-2">Result for <strong class="text-gray-800">${result.ref}</strong>:</p>
                             <div class="space-y-1 pl-2">
-                                <p class="text-lg"><strong class="font-semibold text-gray-700 w-24 inline-block">Status 1:</strong> <span class="text-blue-600 font-bold">${result.status1}</span></p>
-                                <p class="text-lg"><strong class="font-semibold text-gray-700 w-24 inline-block">Status 2:</strong> <span class="text-green-600 font-bold">${result.status2}</span></p>
+                                <p class="text-lg"><strong class="font-semibold text-gray-700 w-36 inline-block">Stages:</strong> <span class="text-blue-600 font-bold">${result.status1}</span></p>
+                                <p class="text-lg"><strong class="font-semibold text-gray-700 w-36 inline-block">Stages Remarks:</strong> <span class="text-green-600 font-bold">${result.status2}</span></p>
                             </div>
                         </div>
                     `;
@@ -175,18 +219,10 @@
         }
         
         // --- Event Listeners ---
-        
-        // Load data as soon as the DOM is ready
         document.addEventListener('DOMContentLoaded', loadSheetData);
-
-        // Handle search on button click
         searchBtn.addEventListener('click', handleSearch);
-        
-        // Allow searching by pressing Enter in the input field
         refInput.addEventListener('keyup', (event) => {
-            if (event.key === 'Enter') {
-                handleSearch();
-            }
+            if (event.key === 'Enter') handleSearch();
         });
 
     </script>
