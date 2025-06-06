@@ -49,7 +49,7 @@
         <div class="bg-white rounded-xl shadow-2xl p-6 md:p-8">
             <div class="text-center mb-8">
                 <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Reference Status Checker</h1>
-                <p class="text-gray-500 mt-2">Enter a full or partial reference number to view its status.</p>
+                <p class="text-gray-500 mt-2">Enter the full reference number to view its status.</p>
             </div>
 
             <!-- Search Input -->
@@ -183,7 +183,8 @@
             for (const row of sheetData) {
                 if(Array.isArray(row) && row.length > SEARCH_COLUMN_INDEX) {
                     const cellValue = (row[SEARCH_COLUMN_INDEX] || '').toLowerCase();
-                    if (cellValue.includes(searchTerm)) {
+                    // Use exact match (===) instead of partial match (.includes())
+                    if (cellValue === searchTerm) {
                         foundResults.push({
                             ref: row[SEARCH_COLUMN_INDEX] || 'N/A',
                             status1: row[RESULT_COLUMN_1_INDEX] || 'N/A',
@@ -211,7 +212,7 @@
             } else {
                 resultContainer.innerHTML = `
                     <div class="text-center">
-                        <p class="text-md text-gray-500">No record found containing:</p>
+                        <p class="text-md text-gray-500">No record found for:</p>
                         <p class="text-2xl font-bold text-red-600 mt-1">${refInput.value.trim()}</p>
                     </div>
                 `;
