@@ -37,6 +37,9 @@
         #result-container::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+        .progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
     </style>
 </head>
 <body class="text-gray-800 flex flex-col items-center justify-center min-h-screen p-4">
@@ -76,6 +79,7 @@
         const SEARCH_COLUMN_INDEX = 1; // Column B
         const RESULT_COLUMN_1_INDEX = 14; // Column O
         const RESULT_COLUMN_2_INDEX = 19; // Column T
+        const TOTAL_STAGES = 17;
 
         // --- DOM element references ---
         const searchBtn = document.getElementById('search-btn');
@@ -87,29 +91,22 @@
 
         /**
          * A highly robust CSV parser that handles quotes, commas, and newlines within fields.
-         * @param {string} csvText - The entire raw CSV text from the fetch call.
-         * @returns {Array<Array<string>>} - A 2D array representing the parsed sheet data.
          */
         function parseCsv(csvText) {
             const rows = [];
             let currentRow = [];
             let currentCell = '';
             let inQuotes = false;
-
-            // Normalize line endings to \n
             csvText = csvText.replace(/\r\n/g, '\n');
-
             for (let i = 0; i < csvText.length; i++) {
                 const char = csvText[i];
-
                 if (inQuotes) {
                     if (char === '"') {
-                        // Check for escaped quote ("")
                         if (i + 1 < csvText.length && csvText[i + 1] === '"') {
                             currentCell += '"';
-                            i++; // Skip the next quote
+                            i++;
                         } else {
-                            inQuotes = false; // End of quoted field
+                            inQuotes = false;
                         }
                     } else {
                         currentCell += char;
@@ -130,13 +127,10 @@
                     }
                 }
             }
-
-            // Add the last cell and row if the file doesn't end with a newline
             if (currentCell || currentRow.length > 0) {
                  currentRow.push(currentCell.trim());
                  rows.push(currentRow);
             }
-            
             return rows;
         }
 
@@ -152,7 +146,6 @@
                 const response = await fetch(`${GOOGLE_SHEET_URL}&t=${new Date().getTime()}`);
                 if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
                 const csvText = await response.text();
-                // Use the new robust parser for the entire CSV text
                 sheetData = parseCsv(csvText);
                 
                 resultContainer.innerHTML = `<p class="text-gray-500">Data loaded. Please enter a reference number.</p>`;
@@ -183,7 +176,6 @@
             for (const row of sheetData) {
                 if(Array.isArray(row) && row.length > SEARCH_COLUMN_INDEX) {
                     const cellValue = (row[SEARCH_COLUMN_INDEX] || '').toLowerCase();
-                    // Use exact match (===) instead of partial match (.includes())
                     if (cellValue === searchTerm) {
                         foundResults.push({
                             ref: row[SEARCH_COLUMN_INDEX] || 'N/A',
@@ -197,12 +189,37 @@
             if (foundResults.length > 0) {
                 let resultsHtml = `<div class="text-left w-full space-y-4">`;
                 foundResults.forEach(result => {
+                    // --- Progress Bar Logic ---
+                    let percentage = 0;
+                    const stageString = result.status1 || ''; // e.g., "S1 - OPEN FILE"
+                    // Use a regular expression to reliably extract the number from the stage string.
+                    const match = stageString.match(/^S(\d+)/); 
+                    
+                    if (match && match[1]) {
+                        const stageNumber = parseInt(match[1], 10);
+                        if (stageNumber > 0) {
+                            // Calculate percentage, capping at 100%
+                            percentage = Math.min(100, (stageNumber / TOTAL_STAGES) * 100);
+                        }
+                    }
+                    // --- End Progress Bar Logic ---
+
                     resultsHtml += `
-                        <div class="border-b border-gray-200 pb-3 last:border-b-0">
+                        <div class="border-b border-gray-200 pb-4 last:border-b-0">
                             <p class="text-md text-gray-600 mb-2">Result for <strong class="text-gray-800">${result.ref}</strong>:</p>
                             <div class="space-y-1 pl-2">
                                 <p class="text-lg"><strong class="font-semibold text-gray-700 w-36 inline-block">Stages:</strong> <span class="text-blue-600 font-bold">${result.status1}</span></p>
                                 <p class="text-lg"><strong class="font-semibold text-gray-700 w-36 inline-block">Stages Remarks:</strong> <span class="text-green-600 font-bold">${result.status2}</span></p>
+                            </div>
+                            <!-- Progress Bar HTML -->
+                            <div class="mt-4 px-2">
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-base font-medium text-gray-700">Progress</span>
+                                    <span class="text-sm font-medium text-gray-700">${Math.round(percentage)}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-4">
+                                    <div class="bg-green-500 h-4 rounded-full progress-bar" style="width: ${percentage}%"></div>
+                                </div>
                             </div>
                         </div>
                     `;
