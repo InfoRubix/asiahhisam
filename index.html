@@ -35,12 +35,22 @@
                 <div class="text-center">
                     <img src="https://i.imgur.com/4qNgA8E.png" alt="Company Logo" class="mb-6 h-20 w-auto mx-auto">
                     <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Reference Status Checker</h1>
-                    <p class="text-gray-500 mt-2">Enter the full reference number to view its status.</p>
+                    <p class="text-gray-500 mt-2">Select a project and enter the reference number to view its status.</p>
                 </div>
 
                 <div class="mt-8">
-                    <label for="ref-input" class="mb-2 text-sm font-medium text-gray-700">Reference Number</label>
-                    <input type="text" id="ref-input" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow text-lg" placeholder="e.g., AHS/SPA/01/01-14/IAM">
+                    <!-- Project Selection Dropdown -->
+                    <div class="mb-4">
+                        <label for="project-select" class="mb-2 text-sm font-medium text-gray-700">Select Project</label>
+                        <select id="project-select" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow text-lg bg-white">
+                            <!-- Options will be populated by JavaScript -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="ref-input" class="mb-2 text-sm font-medium text-gray-700">Reference Number</label>
+                        <input type="text" id="ref-input" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow text-lg" placeholder="e.g., AHS/SPA/01/01-14/IAM">
+                    </div>
                     <button id="search-btn" class="mt-4 w-full bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-105 shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
                         Search
                     </button>
@@ -79,8 +89,7 @@
                         <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                         </svg>
-                        <h3 class="mt-4 text-sm font-medium text-gray-900">Search for a reference number</h3>
-                        <p class="mt-1 text-sm text-gray-500">The status timeline will appear here.</p>
+                        <h3 class="mt-4 text-sm font-medium text-gray-900">Select a project to begin</h3>
                     </div>
                 </div>
             </div>
@@ -90,41 +99,79 @@
 
     <script>
         // --- Configuration ---
-        const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhVOvcKbqZZuAuYE-FgLykZX5PRpeTMgJ1SpAAKAcZRRTb8Bt8cPOSQXj0EWL6iC7eQRofXmggke-T/pub?gid=0&single=true&output=csv';
-        const SEARCH_COLUMN_INDEX = 1; // Column B
-        const VENDOR_COLUMN_INDEX = 4; // Column E
-        const PURCHASER_COLUMN_INDEX = 6; // Column G
-        const STAGES_COLUMN_INDEX = 14; // Column O
-        
-        const STAGES_INFO = [
-            { id: 1, title: 'Initial File Opening & Setup', description: 'The law firm opens the case file, assigns it internally, contacts the client, and begins preparing documents including early drafting.' },
-            { id: 2, title: 'Consent & MOT Prep', description: 'The firm applies for necessary consents like developer consent, PR1MA consent, or prepares for transfer of ownership (MOT).'},
-            { id: 3, title: 'Agreement Execution', description: 'All parties (buyer, seller, borrower) sign the Sale and Purchase Agreement (SPA) and Loan Agreement (LA), which are then stamped.'},
-            { id: 4, title: 'Developer & SPA Solicitor Correspondence', description: 'The firm communicates with the developer or liquidator to obtain required property documents such as Letter of No Objection (LONO) or Redemption Statement (RS).'},
-            { id: 5, title: 'Loan Agreement Execution', description: 'The firm finalizes execution of the Loan Agreement and submits it as per the bank’s legal documentation process.'},
-            { id: 6, title: 'FA Stamping', description: 'Stamp duty for the Facility Agreement is paid and the stamped documents are forwarded to the lending bank.'},
-            { id: 7, title: 'Consent & Low-Cost Application', description: 'Applications for developer consent and low-cost housing approvals are submitted and monitored.'},
-            { id: 8, title: 'Kaveat Registration', description: 'The firm registers a caveat on behalf of the bank to protect the bank’s interest in the property.'},
-            { id: 9, title: 'Redeem Preparation', description: 'The firm compiles all necessary documents to allow the buyer’s bank to redeem (settle) the seller’s outstanding loan.'},
-            { id: 10, title: 'Redeem Execution', description: 'The buyer’s bank disburses the redemption sum to the seller’s bank to remove the existing charge.'},
-            { id: 11, title: 'Discharge of Charge Process', description: 'The seller’s bank provides discharge documents, and the firm ensures they are received and forwarded for title updates.'},
-            { id: 12, title: 'Stamp Duty & Adjudication', description: 'Stamp duty for transfer documents (Form 16A/16N, DRR) is calculated, paid, and documents are stamped.'},
-            { id: 13, title: 'Blanket Consent & PA', description: 'The firm obtains blanket consent from the developer and files additional documents like Power of Attorney.'},
-            { id: 14, title: 'Land Office Presentation', description: 'The complete set of title transfer documents is presented to the Land Office for official processing.'},
-            { id: 15, title: 'Bank Payment Processing (BPP)', description: 'The firm advises the bank to prepare the final disbursement (BPP) to the seller after presentation.'},
-            { id: 16, title: 'Bank Disbursement BPP', description: 'The buyer’s bank releases the balance purchase price to the seller and confirms it to the firm.'},
-            { id: 17, title: 'Finalization & Vacant Possession', description: 'The firm arranges for vacant possession (handover of keys) and sends original documents for safekeeping.'}
+        const PROJECTS = [
+            {
+                name: "Conveyancing Files",
+                url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQhVOvcKbqZZuAuYE-FgLykZX5PRpeTMgJ1SpAAKAcZRRTb8Bt8cPOSQXj0EWL6iC7eQRofXmggke-T/pub?gid=0&single=true&output=csv",
+                timeline: "conveyancing",
+                columns: {
+                    search: 1,      // Column B
+                    vendor: 4,      // Column E
+                    purchaser: 6,   // Column G
+                    stage: 14       // Column O
+                }
+            },
+            {
+                name: "POT / POC Files",
+                url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7HeaqfBAjFzcCOZvt3NGeatKvePR2SZkg-2cE7IF-K3jOs7wB7hcyItZayU5jP_wq-xc8LpFowTlJ/pub?gid=0&single=true&output=csv",
+                timeline: "pot_poc",
+                columns: {
+                    search: 1,      // Column B
+                    vendor: 'N/A',  // Special case for "Not Available"
+                    purchaser: 2,   // Column C
+                    stage: 4        // Column E
+                }
+            }
         ];
+        
+        const TIMELINES = {
+            conveyancing: [
+                { id: 1, title: 'Initial File Opening & Setup', description: 'The law firm opens the case file, assigns it internally, contacts the client, and begins preparing documents including early drafting.' },
+                { id: 2, title: 'Consent & MOT Prep', description: 'The firm applies for necessary consents like developer consent, PR1MA consent, or prepares for transfer of ownership (MOT).'},
+                { id: 3, title: 'Agreement Execution', description: 'All parties (buyer, seller, borrower) sign the Sale and Purchase Agreement (SPA) and Loan Agreement (LA), which are then stamped.'},
+                { id: 4, title: 'Developer & SPA Solicitor Correspondence', description: 'The firm communicates with the developer or liquidator to obtain required property documents such as Letter of No Objection (LONO) or Redemption Statement (RS).'},
+                { id: 5, title: 'Loan Agreement Execution', description: 'The firm finalizes execution of the Loan Agreement and submits it as per the bank’s legal documentation process.'},
+                { id: 6, title: 'FA Stamping', description: 'Stamp duty for the Facility Agreement is paid and the stamped documents are forwarded to the lending bank.'},
+                { id: 7, title: 'Consent & Low-Cost Application', description: 'Applications for developer consent and low-cost housing approvals are submitted and monitored.'},
+                { id: 8, title: 'Kaveat Registration', description: 'The firm registers a caveat on behalf of the bank to protect the bank’s interest in the property.'},
+                { id: 9, title: 'Redeem Preparation', description: 'The firm compiles all necessary documents to allow the buyer’s bank to redeem (settle) the seller’s outstanding loan.'},
+                { id: 10, title: 'Redeem Execution', description: 'The buyer’s bank disburses the redemption sum to the seller’s bank to remove the existing charge.'},
+                { id: 11, title: 'Discharge of Charge Process', description: 'The seller’s bank provides discharge documents, and the firm ensures they are received and forwarded for title updates.'},
+                { id: 12, title: 'Stamp Duty & Adjudication', description: 'Stamp duty for transfer documents (Form 16A/16N, DRR) is calculated, paid, and documents are stamped.'},
+                { id: 13, title: 'Blanket Consent & PA', description: 'The firm obtains blanket consent from the developer and files additional documents like Power of Attorney.'},
+                { id: 14, title: 'Land Office Presentation', description: 'The complete set of title transfer documents is presented to the Land Office for official processing.'},
+                { id: 15, title: 'Bank Payment Processing (BPP)', description: 'The firm advises the bank to prepare the final disbursement (BPP) to the seller after presentation.'},
+                { id: 16, title: 'Bank Disbursement BPP', description: 'The buyer’s bank releases the balance purchase price to the seller and confirms it to the firm.'},
+                { id: 17, title: 'Finalization & Vacant Possession', description: 'The firm arranges for vacant possession (handover of keys) and sends original documents for safekeeping.'}
+            ],
+            pot_poc: [
+                { id: 1, title: 'REQUEST DOCS (CLIENT)', description: 'Requesting initial documents from the client to begin the process.' },
+                { id: 2, title: 'PREPARE DOCS/ SET APPOINTMENT', description: 'Preparing all necessary documentation and scheduling appointments for signing.' },
+                { id: 3, title: 'SIGNING', description: 'All relevant parties are signing the legal documents.' },
+                { id: 4, title: 'REQUEST LATEST MAINTENANCE (CLIENT)/ REQUEST COPY TITLE (DEV)', description: 'Requesting updated maintenance records from the client and a copy of the title from the developer.' },
+                { id: 5, title: 'SUBMIT EXECUTION MOT (DEV)', description: 'Submitting the executed Memorandum of Transfer (MOT) to the developer.' },
+                { id: 6, title: 'SUBMIT EXECUTION MOC (BANK)', description: 'Submitting the executed Memorandum of Charge (MOC) to the bank.' },
+                { id: 7, title: 'CTC BLANKET CONSENT', description: 'Applying for the Certified True Copy (CTC) of the blanket consent.' },
+                { id: 8, title: 'APPLY CONSENT TO TRANSFER & CHARGE', description: 'Applying for the official consent to transfer ownership and charge the property.' },
+                { id: 9, title: 'REQUEST SETTLEMENT OF LEGAL FEES', description: 'Requesting the final settlement of all outstanding legal fees.' },
+                { id: 10, title: 'STAMPING/ ADJUDICATION OF MOT', description: 'Getting the Memorandum of Transfer (MOT) stamped and adjudicated by the authorities.' },
+                { id: 11, title: 'REQUEST ORIGINAL FA (BANK)/ REQUEST ORIGINAL TITLE (DEV)', description: 'Requesting the original Facility Agreement from the bank and the original title from the developer.' },
+                { id: 12, 'title': 'STAMPING/ ADJUDICATION MOC', description: 'Getting the Memorandum of Charge (MOC) stamped and adjudicated by the authorities.' },
+                { id: 13, 'title': 'PRESENTATION/ REGISTRATION', description: 'Presenting all documents to the Land Office for final registration.' },
+                { id: 14, 'title': 'SAFEKEEPING', description: 'Placing all original documents in secure storage.' },
+                { id: 15, 'title': 'COMPLETED', description: 'The entire process is complete.' }
+            ]
+        };
 
         // --- DOM element references ---
         const searchBtn = document.getElementById('search-btn');
         const refInput = document.getElementById('ref-input');
+        const projectSelect = document.getElementById('project-select');
         const resultContainer = document.getElementById('result-container');
-        const placeholder = document.getElementById('placeholder');
         const fileInfoContainer = document.getElementById('file-info-container');
 
         // --- Application State ---
-        let sheetData = null; 
+        let sheetDataCache = {}; 
 
         /** A highly robust CSV parser. */
         function parseCsv(csvText) {
@@ -162,32 +209,38 @@
             return rows;
         }
 
-        /** Fetches and parses CSV data. */
-        async function loadSheetData() {
+        /** Fetches and parses CSV data for a given URL, using a cache. */
+        async function loadSheetData(url) {
+            if (sheetDataCache[url]) {
+                return sheetDataCache[url];
+            }
+
             searchBtn.disabled = true;
             refInput.disabled = true;
-            resultContainer.innerHTML = '<div class="flex items-center justify-center h-full"><div class="loader"></div><p class="ml-4 text-gray-500">Loading data...</p></div>';
+            resultContainer.innerHTML = '<div class="flex items-center justify-center h-full"><div class="loader"></div><p class="ml-4 text-gray-500">Loading project data...</p></div>';
             
             try {
-                const response = await fetch(`${GOOGLE_SHEET_URL}&t=${new Date().getTime()}`);
+                const response = await fetch(`${url}&t=${new Date().getTime()}`);
                 if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
                 const csvText = await response.text();
-                sheetData = parseCsv(csvText);
+                const data = parseCsv(csvText);
+                sheetDataCache[url] = data; // Cache the data
                 
-                resultContainer.innerHTML = `<div id="placeholder" class="text-center text-gray-500 p-8">...</div>`; // Re-add placeholder
+                resultContainer.innerHTML = `<div id="placeholder" class="text-center text-gray-500 p-8">...</div>`;
                 document.getElementById('placeholder').innerHTML = `<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg><h3 class="mt-4 text-sm font-medium text-gray-900">Data Loaded</h3><p class="mt-1 text-sm text-gray-500">Please enter a reference number.</p>`;
                 searchBtn.disabled = false;
                 refInput.disabled = false;
+                return data;
             } catch (error) {
                 console.error("Error loading sheet data:", error);
-                resultContainer.innerHTML = `<div class="p-8"><p class="text-red-600 font-semibold">Error: Failed to load data. Please refresh the page.</p></div>`;
+                resultContainer.innerHTML = `<div class="p-8"><p class="text-red-600 font-semibold">Error: Failed to load data for this project. Please check the URL.</p></div>`;
+                return null;
             }
         }
 
         /** Renders a special status card for non-timeline statuses. */
         function renderSpecialStatus(status) {
             let title, description, icon, bgColor, textColor;
-
             const upperCaseStatus = status.toUpperCase();
 
             if (upperCaseStatus.includes('CANCEL')) {
@@ -196,9 +249,9 @@
                 icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
                 bgColor = 'bg-red-50';
                 textColor = 'text-red-700';
-            } else if (upperCaseStatus.includes('CLOSE')) {
-                title = 'File Closed';
-                description = 'This transaction has been successfully completed and the file is now closed. All stages are finished.';
+            } else if (upperCaseStatus.includes('CLOSE') || status.toUpperCase().includes('COMPLETED')) {
+                title = 'File Completed';
+                description = 'This transaction has been successfully completed and the file is now closed.';
                 icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
                 bgColor = 'bg-green-50';
                 textColor = 'text-green-700';
@@ -220,8 +273,8 @@
             `;
         }
 
-        /** Renders the vertical timeline based on the current stage. */
-        function renderTimeline(currentStage) {
+        /** Renders the vertical timeline based on the current stage and timeline data. */
+        function renderTimeline(currentStage, timelineData) {
             let currentStageNumber = 0;
             const match = currentStage.match(/^S(\d+)/);
             if(match && match[1]) {
@@ -230,10 +283,9 @@
             
             let timelineHtml = '<div class="w-full text-left p-2 sm:p-4">';
             
-            STAGES_INFO.forEach((stage, index) => {
+            timelineData.forEach((stage, index) => {
                 const isCompleted = stage.id < currentStageNumber;
                 const isCurrent = stage.id === currentStageNumber;
-                
                 let textClass = 'text-gray-500';
                 let iconHtml = `<div class="w-3 h-3 bg-gray-300 rounded-full"></div>`;
                 let currentStageId = '';
@@ -249,7 +301,7 @@
                 
                 timelineHtml += `
                     <div ${currentStageId} class="relative flex items-start">
-                        ${index !== STAGES_INFO.length - 1 ? `<div class="absolute left-[9px] top-6 h-full w-0.5 ${stage.id < currentStageNumber ? 'bg-green-500' : 'bg-gray-300'}"></div>` : ''}
+                        ${index !== timelineData.length - 1 ? `<div class="absolute left-[9px] top-6 h-full w-0.5 ${stage.id < currentStageNumber ? 'bg-green-500' : 'bg-gray-300'}"></div>` : ''}
                         <div class="z-10">${iconHtml}</div>
                         <div class="ml-4 pb-8">
                             <h3 class="font-semibold ${textClass}">S${stage.id} - ${stage.title}</h3>
@@ -280,11 +332,13 @@
         }
 
         /** Handles the search logic. */
-        function handleSearch() {
-            if (!sheetData) {
-                resultContainer.innerHTML = `<div class="p-8"><p class="text-yellow-700 font-semibold">Data is still loading. Please wait.</p></div>`;
-                return;
-            }
+        async function handleSearch() {
+            const selectedProjectUrl = projectSelect.value;
+            const selectedProject = PROJECTS.find(p => p.url === selectedProjectUrl);
+            const columns = selectedProject.columns;
+            const sheetData = await loadSheetData(selectedProjectUrl);
+
+            if (!sheetData) { return; }
 
             const searchTerm = refInput.value.trim().toLowerCase();
             if (!searchTerm) {
@@ -294,14 +348,14 @@
             
             let foundResult = null;
             for (const row of sheetData) {
-                if(Array.isArray(row) && row.length > SEARCH_COLUMN_INDEX) {
-                    const cellValue = (row[SEARCH_COLUMN_INDEX] || '').toLowerCase();
+                if(Array.isArray(row) && row.length > columns.search) {
+                    const cellValue = (row[columns.search] || '').toLowerCase();
                     if (cellValue === searchTerm) {
                         foundResult = {
-                            ref: row[SEARCH_COLUMN_INDEX] || 'N/A',
-                            stage: row[STAGES_COLUMN_INDEX] || 'N/A',
-                            vendor: row[VENDOR_COLUMN_INDEX] || 'N/A',
-                            purchaser: row[PURCHASER_COLUMN_INDEX] || 'N/A',
+                            ref: row[columns.search] || 'N/A',
+                            stage: row[columns.stage] || 'N/A',
+                            vendor: columns.vendor === 'N/A' ? 'Not Available' : (row[columns.vendor] || 'N/A'),
+                            purchaser: row[columns.purchaser] || 'N/A',
                         };
                         break;
                     }
@@ -310,14 +364,16 @@
 
             if (foundResult) {
                 const upperCaseStage = foundResult.stage.toUpperCase();
-                if (upperCaseStage.includes('CANCEL') || upperCaseStage.includes('CLOSE') || upperCaseStage.includes('KIV')) {
+                const currentTimelineData = TIMELINES[selectedProject.timeline];
+
+                if (upperCaseStage.includes('CANCEL') || upperCaseStage.includes('CLOSE') || upperCaseStage.includes('KIV') || upperCaseStage.includes('COMPLETED')) {
                     renderSpecialStatus(foundResult.stage);
                 } else {
-                    renderTimeline(foundResult.stage);
+                    renderTimeline(foundResult.stage, currentTimelineData);
                 }
                 displayFileInfo(foundResult);
             } else {
-                fileInfoContainer.classList.add('hidden'); // Hide info on failed search
+                fileInfoContainer.classList.add('hidden');
                 resultContainer.innerHTML = `
                     <div class="text-center p-8">
                         <p class="text-md text-gray-500">No record found for:</p>
@@ -327,12 +383,36 @@
             }
         }
         
-        // --- Event Listeners ---
-        document.addEventListener('DOMContentLoaded', loadSheetData);
-        searchBtn.addEventListener('click', handleSearch);
-        refInput.addEventListener('keyup', (event) => {
-            if (event.key === 'Enter') handleSearch();
-        });
+        /** Initializes the application */
+        function init() {
+            // Populate project dropdown
+            PROJECTS.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project.url;
+                option.textContent = project.name;
+                projectSelect.appendChild(option);
+            });
+
+            // Add event listeners
+            searchBtn.addEventListener('click', handleSearch);
+            refInput.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') handleSearch();
+            });
+            projectSelect.addEventListener('change', () => {
+                // Clear results when project changes
+                fileInfoContainer.classList.add('hidden');
+                resultContainer.innerHTML = `<div id="placeholder" class="text-center text-gray-500 p-8"><h3 class="mt-4 text-sm font-medium text-gray-900">Project changed</h3><p class="mt-1 text-sm text-gray-500">Enter a reference number to search in this project.</p></div>`;
+                loadSheetData(projectSelect.value);
+            });
+
+            // Initial load of the first project
+            if (PROJECTS.length > 0) {
+                loadSheetData(PROJECTS[0].url);
+            }
+        }
+
+        // --- Start the application ---
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
